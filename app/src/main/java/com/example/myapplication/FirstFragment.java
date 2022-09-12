@@ -3,6 +3,7 @@ package com.example.myapplication;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.Editable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,6 +30,7 @@ import notion.api.v1.model.databases.Database;
 import java.util.HashMap;
 import java.util.ArrayList;
 import android.widget.EditText;
+import android.text.TextWatcher;
 import android.view.inputmethod.InputMethodManager;
 
 public class FirstFragment extends Fragment {
@@ -117,11 +119,24 @@ public class FirstFragment extends Fragment {
         EditText text = (EditText)getView().findViewById(R.id.idText);
         text.setFocusableInTouchMode(true);
         text.requestFocus();
+        binding.buttonFirst.setEnabled(false);
         binding.buttonFirst.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 new MyTask().execute();
             }
+        });
+        // Enable submit button if entry field is not empty
+        text.addTextChangedListener(new TextWatcher() {
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (s.toString().equals("")) {
+                    binding.buttonFirst.setEnabled(false);
+                } else {
+                    binding.buttonFirst.setEnabled(true);
+                }
+            }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void afterTextChanged(Editable s) {}
         });
     }
 
