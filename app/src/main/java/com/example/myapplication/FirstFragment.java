@@ -38,19 +38,55 @@ public class FirstFragment extends Fragment {
     private FragmentFirstBinding binding;
     private NotionClient client;
     private String idd;
+    private Database db;
+    private PageProperty propNextAction;
+    private boolean ConnectionToNotionOK = false;
 
+    // This class will connect to Notion, get the DB and get the property info
+    // for the "Next Action" status
+    private class ConnectToNotion extends AsyncTask<Void, Void, Void>{
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            String notionToken = BuildConfig.NOTION_TOKEN;
+            String dbName = BuildConfig.DB_NAME;
+            client = new NotionClient(notionToken);
+            SearchResults results = client.search(dbName);
+            idd = results.getResults().get(0).getId();
+            db = client.retrieveDatabase(idd);
+
+            propNextAction = new PageProperty();
+            propNextAction.setType(PropertyType.MultiSelect);
+            List<DatabaseProperty.MultiSelect.Option> myListSstatus = new ArrayList<>();
+
+            List statuss = db.getProperties().get("Status").getMultiSelect().getOptions();
+            int nextActionID = 0;
+            for (int i = 0; i < statuss.size(); i++) {
+                String trt = ((DatabaseProperty.MultiSelect.Option) statuss.get(i)).getName();
+                if (trt.equals("Next Action")) {
+                    nextActionID = i;
+                }
+            }
+            DatabaseProperty.MultiSelect.Option nextActionOption = (DatabaseProperty.MultiSelect.Option)statuss.get(nextActionID);
+            myListSstatus.add(nextActionOption);
+            propNextAction.setMultiSelect(myListSstatus);
+            ConnectionToNotionOK = true;
+            return null;
+        }
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+        }
+    }
+
+
+    // This class will insert a new row into the database
     private class MyTask extends AsyncTask<Void, Void, Void>{
 
         @Override
         protected Void doInBackground(Void... voids) {
             EditText text = (EditText)getView().findViewById(R.id.idText);
             String result = text.getText().toString();
-            String notionToken = BuildConfig.NOTION_TOKEN;
-            String dbName = BuildConfig.DB_NAME;
-            client = new NotionClient(notionToken);
-            SearchResults results = client.search(dbName);
-            idd = results.getResults().get(0).getId();
-            Database db = client.retrieveDatabase(idd);
 
             PageProperty prop = new PageProperty();
             PageProperty.RichText.Text rt = new PageProperty.RichText.Text(result);
@@ -68,22 +104,7 @@ public class FirstFragment extends Fragment {
             prop.setNumber(4.2);
             myMap.put("Priority", prop);
 
-            prop = new PageProperty();
-            prop.setType(PropertyType.MultiSelect);
-            List<DatabaseProperty.MultiSelect.Option> myListSstatus = new ArrayList<>();
-
-            List statuss = db.getProperties().get("Status").getMultiSelect().getOptions();
-            int nextActionID = 0;
-            for (int i = 0; i < statuss.size(); i++) {
-                String trt = ((DatabaseProperty.MultiSelect.Option) statuss.get(i)).getName();
-                if (trt.equals("Next Action")) {
-                    nextActionID = i;
-                }
-            }
-            DatabaseProperty.MultiSelect.Option t = (DatabaseProperty.MultiSelect.Option)statuss.get(nextActionID);
-            myListSstatus.add(t);
-            prop.setMultiSelect(myListSstatus);
-            myMap.put("Status", prop);
+            myMap.put("Status", propNextAction);
 
             PageParent pp = PageParent.database(idd);
             try {
@@ -126,13 +147,21 @@ public class FirstFragment extends Fragment {
                 new MyTask().execute();
             }
         });
+        // Start connection to Notion
+        ConnectToNotion t = new ConnectToNotion();
+        t.execute();
         // Enable submit button if entry field is not empty
         text.addTextChangedListener(new TextWatcher() {
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (s.toString().equals("")) {
                     binding.buttonFirst.setEnabled(false);
                 } else {
-                    binding.buttonFirst.setEnabled(true);
+                    // only enable the submit button if there is connection to Notion
+                    if (ConnectionToNotionOK) {
+                        binding.buttonFirst.setEnabled(true);
+                    } else {
+                        binding.buttonFirst.setEnabled(false);
+                    }
                 }
             }
             public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
